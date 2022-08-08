@@ -2,10 +2,10 @@
 
 ## A working example and some information on how to use this package
 
-In the example.ts file you can find a working implementation of this package.<br/>
+In the [example.ts file](https://github.com/deadlinecode/baileys-bottle/blob/master/src/example/example.ts) you can find a working implementation of this package.<br/>
 You can also find some information on the internals under this section.<br/>
 I tried to keep things as similar to baileys makeInMemoryStore as far as using the functions goes.<br/>
-Please also note that for some types of database (like sqlite) you will have to install a seperat package. You can find out which package you need by reading through the typeorm documentation or just wait for the error from typeorm which will most likely tell you that you are missing the corresponding package and shows you how you can install it.
+Please also note that for some types of database (like sqlite) you will have to install a separate package. You can find out which package you need by reading through the typeorm documentation or just wait for the error from typeorm which will most likely tell you that you are missing the corresponding package and shows you how you can install it.
 
 ## What has changed
 
