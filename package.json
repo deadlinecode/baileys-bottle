@@ -1,0 +1,45 @@
+{
+  "name": "baileys-bottle",
+  "version": "1.0.0",
+  "description": "A little package made by deadlinecode for storing all the data from baileys in whatever database you want to use by using typeorm",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "example": "ts-node src/example/example.ts",
+    "prepare": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deadlinecode/baileys-bottle.git"
+  },
+  "files": [
+    "lib/**/*"
+  ],
+  "dependencies": {
+    "@adiwajshing/baileys": "^4.3.0",
+    "typeorm": "0.3.7"
+  },
+  "devDependencies": {
+    "@adiwajshing/keyed-db": "^0.2.4",
+    "@types/ws": "^8.5.3",
+    "qrcode-terminal": "^0.12.0",
+    "sqlite3": "^5.0.2",
+    "typescript": "4.5.2",
+    "ts-node": "^10.9.1"
+  },
+  "keywords": [
+    "WA",
+    "WhatsApp",
+    "Bot",
+    "DB",
+    "Database",
+    "Baileys"
+  ],
+  "author": "deadlinecode",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/deadlinecode/baileys-bottle/issues"
+  },
+  "homepage": "https://github.com/deadlinecode/baileys-bottle#readme"
+}
