@@ -11,7 +11,7 @@ const main = async () => {
   const logger = log.child({});
   logger.level = "silent";
 
-  const { auth, store } = await BaileysBottle({
+  const { auth/*, store */} = await BaileysBottle({
     type: "sqlite",
     database: "db.sqlite",
   });
@@ -29,7 +29,7 @@ const main = async () => {
       logger,
     });
 
-    store.bind(sock.ev);
+    //store.bind(sock.ev);
 
     //
     // Start your bot code here...

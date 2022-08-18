@@ -41,7 +41,7 @@ class BaileysBottle {
     } catch {
       return await this.init(db, { sync: true, ...options });
     }
-    return { auth: new AuthHandle(ds), store: new StoreHandle(ds) };
+    return { auth: new AuthHandle(ds), store: new StoreHandle(ds)};
   };
 }
 
