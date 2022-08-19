@@ -44,7 +44,7 @@ export class Chat {
   ephemeralSettingTimestamp?: number | null;
 
   @Column({ nullable: true, type: "simple-json" })
-  endOfHistoryTransferType?: proto.Conversation.ConversationEndOfHistoryTransferType | null;
+  endOfHistoryTransferType?: proto.Conversation.EndOfHistoryTransferType | null;
 
   @Column({ nullable: true })
   conversationTimestamp?: number | null;

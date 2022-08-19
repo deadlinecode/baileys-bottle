@@ -1,7 +1,6 @@
 import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
-  makeInMemoryStore,
 } from "@adiwajshing/baileys";
 import log from "@adiwajshing/baileys/lib/Utils/logger";
 import BaileysBottle from "..";
@@ -31,28 +30,45 @@ const main = async () => {
 
     store.bind(sock.ev);
 
-    //
-    // Start your bot code here...
-    //
-    sock.ev.on("messages.upsert", (m) => {
-      m.messages.forEach(console.log);
-    });
-    //
-    // End your bot code here...
-    //
+    sock.ev.process(
+     async (events) => {
 
-    sock.ev.on("connection.update", ({ connection, lastDisconnect }) =>
-      connection === "open"
+      //
+      // Start your bot code here...
+      //
+      if(events['messages.upsert']) {
+				const upsert = events['messages.upsert'];
+				console.log('recv messages ', JSON.stringify(upsert, undefined, 2));
+				if(upsert.type === 'notify') {
+					for(const msg of upsert.messages) {
+						if(!msg.key.fromMe) {
+              // mark message as read
+							await sock!.readMessages([msg.key]);
+						}
+					}
+				}
+			}
+      //
+      // End your bot code here...
+      //
+
+      // credentials updated -- save them
+			if(events['creds.update']) saveState();
+			
+
+      if(events['connection.update']) {
+        const update = events['connection.update'];
+				const { connection, lastDisconnect } = update;
+        connection === "open"
         ? console.log("Connected")
         : connection === "close"
         ? (lastDisconnect?.error as Boom)?.output?.statusCode !==
           DisconnectReason.loggedOut
           ? startSocket()
           : console.log("Connection closed. You are logged out.")
-        : null
-    );
-
-    sock.ev.on("creds.update", saveState);
+        : null;
+      }
+    });
   };
 
   startSocket();

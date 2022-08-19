@@ -24,7 +24,7 @@ export class Message {
   messageTimestamp?: number | Long | null;
 
   @Column({ nullable: true, type: "simple-json" })
-  status?: proto.WebMessageInfo.WebMessageInfoStatus | null;
+  status?: proto.WebMessageInfo.Status | null;
 
   @Column({ nullable: true })
   participant?: string | null;
@@ -57,7 +57,7 @@ export class Message {
   urlNumber?: boolean | null;
 
   @Column({ nullable: true, type: "simple-enum" })
-  messageStubType?: proto.WebMessageInfo.WebMessageInfoStubType | null;
+  messageStubType?: proto.WebMessageInfo.StubType | null;
 
   @Column({ nullable: true })
   clearMedia?: boolean | null;
@@ -75,7 +75,7 @@ export class Message {
   paymentInfo?: proto.IPaymentInfo | null;
 
   @Column({ nullable: true, type: "simple-json" })
-  finalLiveLocation?: proto.ILiveLocationMessage | null;
+  finalLiveLocation?: proto.Message.LiveLocationMessage | null;
 
   @Column({ nullable: true, type: "simple-json" })
   quotedPaymentInfo?: proto.IPaymentInfo | null;
@@ -93,7 +93,7 @@ export class Message {
   ephemeralOutOfSync?: boolean | null;
 
   @Column({ nullable: true, type: "simple-enum" })
-  bizPrivacyStatus?: proto.WebMessageInfo.WebMessageInfoBizPrivacyStatus | null;
+  bizPrivacyStatus?: proto.WebMessageInfo.BizPrivacyStatus | null;
 
   @Column({ nullable: true })
   verifiedBizName?: string | null;

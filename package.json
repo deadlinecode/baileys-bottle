@@ -1,6 +1,6 @@
 {
   "name": "baileys-bottle",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A little package made by deadlinecode for storing all the data from baileys in whatever database you want to use by using typeorm",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -17,7 +17,7 @@
     "lib/**/*"
   ],
   "dependencies": {
-    "@adiwajshing/baileys": "^4.3.0",
+    "@adiwajshing/baileys": "^4.4.0",
     "typeorm": "0.3.7"
   },
   "devDependencies": {
