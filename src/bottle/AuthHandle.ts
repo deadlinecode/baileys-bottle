@@ -30,7 +30,7 @@ export default class AuthHandle {
     let keys: any = {};
 
     var existingAuth = await this.ds.getRepository(Auth).findOneBy({
-      key: "sim",
+      key: sim,
     });
     ({ creds, keys } = existingAuth
       ? JSON.parse(existingAuth.value, BufferJSON.reviver)
