@@ -1,16 +1,10 @@
 import { proto } from "@adiwajshing/baileys";
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  Unique,
-  PrimaryColumn,
-} from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, Unique } from "typeorm";
 
 @Entity()
 @Unique(["DBId", "id"])
 export class Chat {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn()
   DBId: number;
 
   @Column()
@@ -25,8 +19,8 @@ export class Chat {
   @Column({ nullable: true })
   oldJid?: string | null;
 
-  @Column({ nullable: true })
-  lastMsgTimestamp?: number | null;
+  @Column({ nullable: true, type: "simple-json" })
+  lastMsgTimestamp?: number | Long | null;
 
   @Column({ nullable: true })
   unreadCount?: number | null;
@@ -40,14 +34,14 @@ export class Chat {
   @Column({ nullable: true })
   ephemeralExpiration?: number | null;
 
-  @Column({ nullable: true })
-  ephemeralSettingTimestamp?: number | null;
+  @Column({ nullable: true, type: "simple-json" })
+  ephemeralSettingTimestamp?: number | Long | null;
 
   @Column({ nullable: true, type: "simple-json" })
   endOfHistoryTransferType?: proto.Conversation.EndOfHistoryTransferType | null;
 
-  @Column({ nullable: true })
-  conversationTimestamp?: number | null;
+  @Column({ nullable: true, type: "simple-json" })
+  conversationTimestamp?: number | Long | null;
 
   @Column({ nullable: true })
   name?: string | null;
@@ -76,8 +70,8 @@ export class Chat {
   @Column({ nullable: true, type: "simple-array" })
   tcToken?: Uint8Array | null;
 
-  @Column({ nullable: true })
-  tcTokenTimestamp?: number | null;
+  @Column({ nullable: true, type: "simple-json" })
+  tcTokenTimestamp?: number | Long | null;
 
   @Column({ nullable: true, type: "simple-array" })
   contactPrimaryIdentityKey?: Uint8Array | null;
@@ -85,17 +79,17 @@ export class Chat {
   @Column({ nullable: true })
   pinned?: number | null;
 
-  @Column({ nullable: true })
-  muteEndTime?: number | null;
+  @Column({ nullable: true, type: "simple-json" })
+  muteEndTime?: number | Long | null;
 
   @Column({ nullable: true, type: "simple-json" })
   wallpaper?: proto.IWallpaperSettings | null;
 
-  @Column({ nullable: true, type: "simple-enum" })
+  @Column({ nullable: true, type: "integer" })
   mediaVisibility?: proto.MediaVisibility | null;
 
-  @Column({ nullable: true })
-  tcTokenSenderTimestamp?: number | null;
+  @Column({ nullable: true, type: "simple-json" })
+  tcTokenSenderTimestamp?: number | Long | null;
 
   @Column({ nullable: true })
   suspended?: boolean | null;
@@ -103,13 +97,13 @@ export class Chat {
   @Column({ nullable: true })
   terminated?: boolean | null;
 
-  @Column({ nullable: true })
-  createdAt?: number | null;
+  @Column({ nullable: true, type: "simple-json" })
+  createdAt?: number | Long | null;
 
   @Column({ nullable: true })
   createdBy?: string | null;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: "text" })
   description?: string | null;
 
   @Column({ nullable: true })
@@ -136,7 +130,7 @@ export class Chat {
   @Column({ nullable: true })
   mute?: number | null;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: "bigint" })
   pin?: number | null;
 
   @Column({ nullable: true })

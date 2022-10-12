@@ -53,7 +53,7 @@ const main = async () => {
       //
 
       // credentials updated -- save them
-			if(events['creds.update']) saveState();
+			if(events['creds.update']) await saveState();
 			
 
       if(events['connection.update']) {

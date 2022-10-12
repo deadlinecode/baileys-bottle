@@ -35,7 +35,9 @@ class BaileysBottle {
       synchronize: options?.sync,
       migrations: [],
       logging: options?.debug,
-    }).initialize();
+      charset: "cp1251_general_ci",
+    } as any).initialize();
+    
     try {
       await ds.getRepository(Auth).find();
     } catch {

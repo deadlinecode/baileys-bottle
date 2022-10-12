@@ -1,9 +1,9 @@
-import { Column, Entity, PrimaryColumn, Unique } from "typeorm";
+import { Column, Entity, PrimaryGeneratedColumn, Unique } from "typeorm";
 
 @Entity()
 @Unique(["DBId", "id"])
 export class Contact {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn()
   DBId: number;
 
   @Column({ unique: true })

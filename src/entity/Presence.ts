@@ -1,11 +1,17 @@
 import { WAPresence } from "@adiwajshing/baileys";
-import { Column, Entity, ManyToOne, PrimaryColumn, Unique } from "typeorm";
+import {
+  Column,
+  Entity,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Unique,
+} from "typeorm";
 import { PresenceDic } from "./PresenceDic";
 
 @Entity()
 @Unique(["DBId"])
 export class Presence {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn()
   DBId: number;
 
   @ManyToOne(() => PresenceDic, (x) => x.presences)

@@ -23,7 +23,7 @@ export default class AuthHandle {
 
   useAuthHandle = async (): Promise<{
     state: AuthenticationState;
-    saveState: () => void;
+    saveState: () => Promise<any>;
   }> => {
     let creds: AuthenticationCreds;
     let keys: any = {};
@@ -39,10 +39,15 @@ export default class AuthHandle {
         });
 
     const saveState = () =>
-      this.ds.getRepository(Auth).save({
-        key: "default_auth",
-        value: JSON.stringify({ creds, keys }, BufferJSON.replacer, 2),
-      });
+      this.ds.getRepository(Auth).upsert(
+        {
+          key: "default_auth",
+          value: JSON.stringify({ creds, keys }, BufferJSON.replacer, 2),
+        },
+        {
+          conflictPaths: ["key"],
+        }
+      );
 
     return {
       state: {
@@ -60,14 +65,14 @@ export default class AuthHandle {
               return dict;
             }, {});
           },
-          set: (data) => {
+          set: async (data) => {
             for (const _key in data) {
               const key = KEY_MAP[_key as keyof SignalDataTypeMap];
               keys[key] = keys[key] || {};
               Object.assign(keys[key], data[_key]);
             }
 
-            saveState();
+            await saveState();
           },
         },
       },

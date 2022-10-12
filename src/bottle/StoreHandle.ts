@@ -133,7 +133,7 @@ export default class StoreHandle {
         const [fMessage] = messages;
         const cursor = { before: fMessage?.key || cursorKey };
         const extra = await retrieve(diff, cursor);
-        
+
         for (let i = extra.length - 1; i >= 0; i--) {
           let message: DBMessage;
           if (
@@ -293,16 +293,18 @@ export default class StoreHandle {
     );
     ev.on("messages.set", async ({ messages: newMessages, isLatest }) => {
       if (isLatest) {
-        const dic = await this.ds.getRepository(DBMessageDic).find({
-          relations: ["messages"],
-        });
+        const dics = (
+          await this.ds.getRepository(DBMessageDic).find({
+            relations: ["messages"],
+          })
+        ).filter((x) => newMessages.find((y) => y.key.id === x.jid));
         await Promise.all(
-          dic.map(
+          dics.map(
             async (x) =>
               await this.ds.getRepository(DBMessage).remove(x.messages)
           )
         );
-        await this.ds.getRepository(DBMessageDic).remove(dic);
+        await this.ds.getRepository(DBMessageDic).remove(dics);
       }
 
       for (const msg of newMessages) {
@@ -313,21 +315,25 @@ export default class StoreHandle {
           },
           relations: ["messages"],
         });
-        if (!dictionary)
-          return await this.ds.getRepository(DBMessageDic).save({
+        if (!dictionary) {
+          await this.ds.getRepository(DBMessageDic).save({
             jid,
             messages: [{ ...(msg as any), msgId: msg.key?.id }],
           });
+          continue;
+        }
 
         let message: DBMessage;
         if (
           !(message = dictionary.messages.find((x) => x.key.id === msg.key.id))
-        )
-          return await this.ds.getRepository(DBMessage).save({
+        ) {
+          await this.ds.getRepository(DBMessage).save({
             ...(msg as any),
             msgId: msg.key?.id,
             dictionary,
           });
+          continue;
+        }
         Object.assign(message, msg);
         await this.ds.getRepository(DBMessageDic).save(dictionary);
       }

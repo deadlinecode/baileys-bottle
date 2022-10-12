@@ -1,11 +1,17 @@
 import { proto } from "@adiwajshing/baileys";
-import { Column, Entity, ManyToOne, PrimaryColumn, Unique } from "typeorm";
+import {
+  Column,
+  Entity,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Unique,
+} from "typeorm";
 import { MessageDic } from "./MessageDic";
 
 @Entity()
 @Unique(["id"])
 export class Message {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ nullable: true })
@@ -14,7 +20,9 @@ export class Message {
   @Column({ nullable: true, type: "simple-json" })
   key?: proto.IMessageKey;
 
-  @ManyToOne(() => MessageDic, (x) => x.messages)
+  @ManyToOne(() => MessageDic, (x) => x.messages, {
+    onDelete: "CASCADE",
+  })
   dictionary: MessageDic;
 
   @Column({ nullable: true, type: "simple-json" })
@@ -56,7 +64,7 @@ export class Message {
   @Column({ nullable: true })
   urlNumber?: boolean | null;
 
-  @Column({ nullable: true, type: "simple-enum" })
+  @Column({ nullable: true, type: "integer" })
   messageStubType?: proto.WebMessageInfo.StubType | null;
 
   @Column({ nullable: true })
@@ -92,7 +100,7 @@ export class Message {
   @Column({ nullable: true })
   ephemeralOutOfSync?: boolean | null;
 
-  @Column({ nullable: true, type: "simple-enum" })
+  @Column({ nullable: true, type: "integer" })
   bizPrivacyStatus?: proto.WebMessageInfo.BizPrivacyStatus | null;
 
   @Column({ nullable: true })

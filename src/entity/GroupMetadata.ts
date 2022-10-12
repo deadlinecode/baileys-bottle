@@ -1,10 +1,10 @@
 import { GroupParticipant } from "@adiwajshing/baileys";
-import { Column, Entity, PrimaryColumn, Unique } from "typeorm";
+import { Column, Entity, PrimaryGeneratedColumn, Unique } from "typeorm";
 
 @Entity()
 @Unique(["DBId"])
 export class GroupMetadata {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn()
   DBId: number;
 
   @Column()

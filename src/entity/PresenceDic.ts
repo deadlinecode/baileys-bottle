@@ -1,10 +1,16 @@
-import { Column, Entity, OneToMany, PrimaryColumn, Unique } from "typeorm";
+import {
+  Column,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  Unique,
+} from "typeorm";
 import { Presence } from "./Presence";
 
 @Entity()
 @Unique(["DBId"])
 export class PresenceDic {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn()
   DBId: number;
 
   @Column()
