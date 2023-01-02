@@ -17,7 +17,7 @@
     "lib/**/*"
   ],
   "dependencies": {
-    "@adiwajshing/baileys": "^4.4.0",
+    "@adiwajshing/baileys": "^5.0.0",
     "typeorm": "0.3.7"
   },
   "devDependencies": {
