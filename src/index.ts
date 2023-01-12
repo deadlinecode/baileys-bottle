@@ -18,6 +18,7 @@ class BaileysBottle {
     options?: {
       debug?: boolean;
       sync?: boolean;
+      key?: string
     }
   ): Promise<{ auth: AuthHandle; store: StoreHandle }> => {
     const ds = await new DataSource({
@@ -43,7 +44,7 @@ class BaileysBottle {
     } catch {
       return await this.init(db, { sync: true, ...options });
     }
-    return { auth: new AuthHandle(ds), store: new StoreHandle(ds) };
+    return { auth: new AuthHandle(ds, options?.key || "default_auth"), store: new StoreHandle(ds) };
   };
 }
 

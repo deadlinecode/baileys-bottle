@@ -19,7 +19,7 @@ const KEY_MAP: { [T in keyof SignalDataTypeMap]: string } = {
 };
 
 export default class AuthHandle {
-  constructor(private ds: DataSource) {}
+  constructor(private ds: DataSource, private key: string = "default_auth") {}
 
   useAuthHandle = async (): Promise<{
     state: AuthenticationState;
@@ -29,7 +29,7 @@ export default class AuthHandle {
     let keys: any = {};
 
     var existingAuth = await this.ds.getRepository(Auth).findOneBy({
-      key: "default_auth",
+      key: this.key,
     });
     ({ creds, keys } = existingAuth
       ? JSON.parse(existingAuth.value, BufferJSON.reviver)
@@ -41,7 +41,7 @@ export default class AuthHandle {
     const saveState = () =>
       this.ds.getRepository(Auth).upsert(
         {
-          key: "default_auth",
+          key: this.key,
           value: JSON.stringify({ creds, keys }, BufferJSON.replacer, 2),
         },
         {
