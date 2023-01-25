@@ -1,11 +1,21 @@
 import { GroupParticipant } from "@adiwajshing/baileys";
-import { Column, Entity, PrimaryGeneratedColumn, Unique } from "typeorm";
+import {
+  Column,
+  Entity,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Unique,
+} from "typeorm";
+import { Auth } from "./Auth";
 
 @Entity()
 @Unique(["DBId"])
 export class GroupMetadata {
   @PrimaryGeneratedColumn()
   DBId: number;
+
+  @ManyToOne(() => Auth, (auth) => auth.chats, { onDelete: "CASCADE" })
+  DBAuth: Auth;
 
   @Column()
   id: string;
@@ -48,4 +58,7 @@ export class GroupMetadata {
 
   @Column({ nullable: true })
   ephemeralDuration?: number;
+
+  @Column({ nullable: true })
+  inviteCode?: string;
 }

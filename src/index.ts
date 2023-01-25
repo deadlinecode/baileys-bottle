@@ -1,50 +1,51 @@
 import { DataSource, DataSourceOptions } from "typeorm";
 import AuthHandle from "./bottle/AuthHandle";
-import StoreHandle from "./bottle/StoreHandle";
+import StoreHandle, { StoreHandleOptions } from "./bottle/StoreHandle";
+import DB from "./DB";
 import { Auth } from "./entity/Auth";
-import { Chat } from "./entity/Chat";
-import { Contact } from "./entity/Contact";
-import { GroupMetadata } from "./entity/GroupMetadata";
-import { Message } from "./entity/Message";
-import { MessageDic } from "./entity/MessageDic";
-import { Presence } from "./entity/Presence";
-import { PresenceDic } from "./entity/PresenceDic";
-
 class BaileysBottle {
   static instance = new BaileysBottle();
   private constructor() {}
+
+  private createStore = async (
+    ds: DataSource,
+    storeName: string,
+    options?: StoreHandleOptions
+  ) => {
+    var store = await ds.getRepository(Auth).findOne({
+      where: { key: storeName },
+    });
+    if (!store)
+      store = await ds.getRepository(Auth).save({
+        key: storeName,
+        value: "",
+        chats: [],
+        contacts: [],
+        groups: [],
+        messageDics: [],
+        presenceDics: [],
+      });
+    return {
+      auth: new AuthHandle(ds, storeName),
+      store: new StoreHandle(ds, store, options),
+    };
+  };
+
   init = async (
     db: DataSourceOptions,
     options?: {
       debug?: boolean;
       sync?: boolean;
     }
-  ): Promise<{ auth: AuthHandle; store: StoreHandle }> => {
-    const ds = await new DataSource({
-      ...db,
-      entities: [
-        Auth,
-        Chat,
-        Contact,
-        GroupMetadata,
-        MessageDic,
-        Message,
-        PresenceDic,
-        Presence,
-      ],
-      synchronize: options?.sync,
-      migrations: [],
-      logging: options?.debug,
-      charset: "cp1251_general_ci",
-    } as any).initialize();
-    
-    try {
-      await ds.getRepository(Auth).find();
-    } catch {
-      return await this.init(db, { sync: true, ...options });
-    }
-    return { auth: new AuthHandle(ds), store: new StoreHandle(ds) };
-  };
+  ): Promise<{
+    createStore: (
+      storeName?: string,
+      storeOptions?: StoreHandleOptions
+    ) => Promise<{ auth: AuthHandle; store: StoreHandle }>;
+  }> => ({
+    createStore: async (...args: any[]) =>
+      this.createStore.apply(null, [await DB.get(db, options), ...args]),
+  });
 }
 
-export default BaileysBottle.instance.init;
+export default BaileysBottle.instance;

@@ -1,11 +1,21 @@
 import { proto } from "@adiwajshing/baileys";
-import { Entity, PrimaryGeneratedColumn, Column, Unique } from "typeorm";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  Unique,
+  ManyToOne,
+} from "typeorm";
+import { Auth } from "./Auth";
 
 @Entity()
 @Unique(["DBId", "id"])
 export class Chat {
   @PrimaryGeneratedColumn()
   DBId: number;
+
+  @ManyToOne(() => Auth, (auth) => auth.chats, { onDelete: "CASCADE" })
+  DBAuth: Auth;
 
   @Column()
   id: string;

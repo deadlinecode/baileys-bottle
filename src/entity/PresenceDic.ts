@@ -1,10 +1,12 @@
 import {
   Column,
   Entity,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   Unique,
 } from "typeorm";
+import { Auth } from "./Auth";
 import { Presence } from "./Presence";
 
 @Entity()
@@ -12,6 +14,9 @@ import { Presence } from "./Presence";
 export class PresenceDic {
   @PrimaryGeneratedColumn()
   DBId: number;
+
+  @ManyToOne(() => Auth, (auth) => auth.chats, { onDelete: "CASCADE" })
+  DBAuth: Auth;
 
   @Column()
   id: string;

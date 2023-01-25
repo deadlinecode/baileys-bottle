@@ -14,7 +14,7 @@ export class Presence {
   @PrimaryGeneratedColumn()
   DBId: number;
 
-  @ManyToOne(() => PresenceDic, (x) => x.presences)
+  @ManyToOne(() => PresenceDic, (x) => x.presences, { onDelete: "CASCADE" })
   dictionary: PresenceDic;
 
   @Column()

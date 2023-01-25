@@ -144,4 +144,10 @@ export class Message {
 
   @Column({ nullable: true, type: "simple-json" })
   keepInChat?: proto.IKeepInChat | null;
+
+  @Column({ nullable: true })
+  originalSelfAuthorUserJidString?: string | null;
+
+  @Column({ nullable: true, type: "simple-json" })
+  revokeMessageTimestamp?: number | Long | null;
 }

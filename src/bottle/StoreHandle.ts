@@ -1,4 +1,4 @@
-import makeWASocket, {
+import {
   BaileysEventEmitter,
   ConnectionState,
   jidNormalizedUser,
@@ -7,359 +7,264 @@ import makeWASocket, {
   updateMessageWithReaction,
   WAMessageKey,
   WAMessageCursor,
-  WAMessage,
-  makeWALegacySocket,
+  Contact,
+  WASocket,
 } from "@adiwajshing/baileys";
 import { Chat as DBChat } from "../entity/Chat";
 import { Contact as DBContact } from "../entity/Contact";
 import { Message as DBMessage } from "../entity/Message";
 import { MessageDic as DBMessageDic } from "../entity/MessageDic";
 import { PresenceDic as DBPresenceDic } from "../entity/PresenceDic";
+import { Presence as DBPresence } from "../entity/Presence";
 import { GroupMetadata as DBGroupMetadata } from "../entity/GroupMetadata";
-import { DataSource } from "typeorm";
+import { DataSource, In } from "typeorm";
+import { Auth } from "../entity/Auth";
+
+export interface StoreHandleOptions {
+  disableDelete?: ("chats" | "messages")[];
+}
 
 export default class StoreHandle {
-  constructor(private ds: DataSource) {}
+  constructor(
+    private ds: DataSource,
+    private auth: Auth,
+    private options?: StoreHandleOptions
+  ) {
+    this.options = {
+      disableDelete: [],
+      ...(this.options || {}),
+    };
+  }
+  private repos = {
+    contacts: this.ds.getRepository(DBContact),
+    chats: this.ds.getRepository(DBChat),
+    messageDics: this.ds.getRepository(DBMessageDic),
+    messages: this.ds.getRepository(DBMessage),
+    presenceDics: this.ds.getRepository(DBPresenceDic),
+    groups: this.ds.getRepository(DBGroupMetadata),
+  };
 
   state: ConnectionState = { connection: "close" };
 
   chats = {
-    all: () => this.ds.getRepository(DBChat).find(),
-    id: (id: string) =>
-      this.ds.getRepository(DBChat).findOneBy({
+    all: () =>
+      this.repos.chats.findBy({
+        DBAuth: {
+          id: this.auth.id,
+        },
+      }),
+    id: (id: string): Promise<DBChat | undefined> =>
+      this.repos.chats.findOneBy({
         id,
+        DBAuth: {
+          id: this.auth.id,
+        },
       }),
   };
 
   contacts = {
-    all: () => this.ds.getRepository(DBContact).find(),
-    id: (id: string) => this.ds.getRepository(DBContact).findOneBy({ id }),
+    all: () =>
+      this.repos.contacts.findBy({
+        DBAuth: {
+          id: this.auth.id,
+        },
+      }),
+    id: (id: string): Promise<DBContact | undefined> =>
+      this.repos.contacts.findOneBy({
+        id,
+        DBAuth: {
+          id: this.auth.id,
+        },
+      }),
   };
 
   messages = {
-    all: async (jid: string) =>
+    all: async (jid: string): Promise<DBMessage[] | undefined> =>
       (
-        await this.ds.getRepository(DBMessageDic).findOne({
+        await this.repos.messageDics.findOne({
           where: {
             jid,
+            DBAuth: {
+              id: this.auth.id,
+            },
           },
           relations: ["messages"],
         })
-      ).messages,
-    id: async (jid: string, msgId: string) =>
+      )?.messages,
+    id: async (jid: string, msgId: string): Promise<DBMessage | undefined> =>
       (
-        await this.ds.getRepository(DBMessageDic).findOne({
+        await this.repos.messageDics.findOne({
           where: {
             jid,
+            DBAuth: {
+              id: this.auth.id,
+            },
           },
           relations: ["messages"],
         })
-      ).messages.find((x) => x.msgId === msgId),
+      )?.messages.find((x) => x.msgId === msgId),
   };
 
   groupMetadata = {
-    all: () => this.ds.getRepository(DBGroupMetadata).find(),
-    id: (id: string) =>
-      this.ds.getRepository(DBGroupMetadata).findOneBy({
+    all: () =>
+      this.repos.groups.findBy({
+        DBAuth: {
+          id: this.auth.id,
+        },
+      }),
+    id: (id: string): Promise<DBGroupMetadata | undefined> =>
+      this.repos.groups.findOneBy({
         id,
+        DBAuth: {
+          id: this.auth.id,
+        },
       }),
   };
 
   presence = {
-    all: (id: string) =>
-      this.ds.getRepository(DBPresenceDic).findOne({
-        where: {
-          id,
-        },
-        relations: ["presences"],
-      }),
-    id: async (id: string, participant: string) =>
+    all: async (id: string): Promise<DBPresence[] | undefined> =>
       (
-        await this.ds.getRepository(DBPresenceDic).findOne({
+        await this.repos.presenceDics.findOne({
           where: {
             id,
+            DBAuth: {
+              id: this.auth.id,
+            },
           },
           relations: ["presences"],
         })
-      ).presences.find((x) => x.participant === participant),
+      )?.presences,
+    id: async (
+      id: string,
+      participant: string
+    ): Promise<DBPresence | undefined> =>
+      (
+        await this.repos.presenceDics.findOne({
+          where: {
+            id,
+            DBAuth: {
+              id: this.auth.id,
+            },
+          },
+          relations: ["presences"],
+        })
+      )?.presences.find((x) => x.participant === participant),
   };
 
-  loadMessages = async (
-    jid: string,
-    count: number,
-    cursor: WAMessageCursor,
-    sock: ReturnType<typeof makeWALegacySocket>
-  ) => {
-    var dictionary = await this.ds.getRepository(DBMessageDic).findOne({
-      where: {
-        jid,
+  private contactsUpsert = async (newContacts: Contact[]) => {
+    var contacts = await this.repos.contacts.findBy({
+      DBAuth: {
+        id: this.auth.id,
       },
-      relations: ["messages"],
     });
-    if (!dictionary)
-      return await this.ds.getRepository(DBMessageDic).save({
-        jid,
-        messages: [],
-      });
-
-    const retrieve = async (count: number, cursor: WAMessageCursor) =>
-      (await sock?.fetchMessagesFromWA(jid, count, cursor)) || [];
-
-    const mode = !cursor || "before" in cursor ? "before" : "after";
-    const cursorKey = !!cursor
-      ? "before" in cursor
-        ? cursor.before
-        : cursor.after
-      : undefined;
-    const cursorValue = cursorKey
-      ? dictionary.messages.find((x) => x.msgId === cursorKey.id!)
-      : undefined;
-
-    let messages: WAMessage[];
-    if (dictionary && mode === "before" && (!cursorKey || cursorValue)) {
-      if (cursorValue) {
-        const msgIdx = dictionary.messages.findIndex(
-          (m) => m.key.id === cursorKey?.id
-        );
-        messages = dictionary.messages.slice(0, msgIdx) as WAMessage[];
-      } else {
-        messages = dictionary.messages as WAMessage[];
-      }
-
-      const diff = count - messages.length;
-      if (diff < 0) {
-        messages = messages.slice(-count);
-      } else if (diff > 0) {
-        const [fMessage] = messages;
-        const cursor = { before: fMessage?.key || cursorKey };
-        const extra = await retrieve(diff, cursor);
-
-        for (let i = extra.length - 1; i >= 0; i--) {
-          let message: DBMessage;
-          if (
-            !(message = dictionary.messages.find(
-              (x) => x.key.id === extra[i].key.id
-            ))
-          )
-            return await this.ds.getRepository(DBMessage).save({
-              ...(extra[i] as any),
-              msgId: extra[i].key?.id,
-              dictionary,
-            });
-          Object.assign(message, extra[i]);
-          await this.ds.getRepository(DBMessageDic).save(dictionary);
-        }
-
-        messages.splice(0, 0, ...extra);
-      }
-    } else {
-      messages = (await retrieve(count, cursor)) as any;
+    const oldContacts = new Set(Object.keys(contacts));
+    for (const contact of newContacts) {
+      oldContacts.delete(contact.id);
+      contacts[contact.id] = Object.assign(
+        contacts[contact.id] || ({ DBAuth: { id: this.auth.id } } as DBContact),
+        contact
+      );
     }
 
-    return messages;
+    await this.repos.contacts.save(contacts);
+    return oldContacts;
   };
 
-  loadMessage = async (
-    jid: string,
-    id: string,
-    sock: ReturnType<typeof makeWALegacySocket>
-  ) => {
-    var dictionary = await this.ds.getRepository(DBMessageDic).findOne({
+  private assertMessageList = async (jid: string) =>
+    (await this.repos.messageDics.findOne({
       where: {
         jid,
-      },
-      relations: ["messages"],
-    });
-    var message = dictionary?.messages.find((x) => x.msgId === id);
-    !message &&
-      this.ds.getRepository(DBMessage).save({
-        ...(await sock.loadMessageFromWA(jid, id)),
-        dictionary,
-      });
-    return await this.loadMessage(jid, id, sock);
-  };
-
-  mostRecentMessage = async (
-    jid: string,
-    sock: ReturnType<typeof makeWALegacySocket>
-  ) => {
-    var dictionary = await this.ds.getRepository(DBMessageDic).findOne({
-      where: {
-        jid,
-      },
-      relations: ["messages"],
-    });
-    var message = dictionary?.messages.slice(-1)[0];
-    if (!message) {
-      var items = await sock.fetchMessagesFromWA(jid, 1, undefined);
-      if (!items?.[0]) return;
-      this.ds.getRepository(DBMessage).save({
-        ...items[0],
-        dictionary,
-      });
-    }
-    return await this.mostRecentMessage(jid, sock);
-  };
-
-  fetchImageUrl = async (
-    jid: string,
-    sock: ReturnType<typeof makeWASocket>
-  ): Promise<string> => {
-    var img = (
-      await this.ds.getRepository(DBContact).findOneBy({
-        id: jid,
-      })
-    )?.imgUrl;
-    !img &&
-      (await this.ds.getRepository(DBContact).update(
-        {
-          id: jid,
+        DBAuth: {
+          id: this.auth.id,
         },
-        {
-          imgUrl: (img = await sock.profilePictureUrl(jid)),
-        }
-      ));
-    return img;
-  };
-
-  fetchGroupMetadata = async (
-    jid: string,
-    sock: ReturnType<typeof makeWASocket>
-  ): Promise<DBGroupMetadata> => {
-    var metadata = await this.ds.getRepository(DBGroupMetadata).findOneBy({
-      id: jid,
-    });
-    !metadata &&
-      (await this.ds.getRepository(DBGroupMetadata).insert({
-        ...(await sock.groupMetadata(jid)),
-      }));
-    return this.fetchGroupMetadata(jid, sock);
-  };
-
-  fetchBroadcastListInfo = async (
-    jid: string,
-    sock: ReturnType<typeof makeWALegacySocket>
-  ) => {
-    var metadata = await this.ds.getRepository(DBGroupMetadata).findOneBy({
-      id: jid,
-    });
-    !metadata &&
-      (await this.ds.getRepository(DBGroupMetadata).insert({
-        ...(await sock.getBroadcastListInfo(jid)),
-      }));
-    return await this.fetchBroadcastListInfo(jid, sock);
-  };
-
-  fetchMessageReceipts = async (
-    { remoteJid, id }: WAMessageKey,
-    sock: ReturnType<typeof makeWALegacySocket>
-  ) => {
-    // const list = messages[remoteJid!];
-    const list = await this.ds.getRepository(DBMessageDic).findOne({
-      where: {
-        jid: remoteJid!,
       },
       relations: ["messages"],
-    });
-    const msg = list.messages.find((x) => x.msgId === id);
-    let receipts = msg?.userReceipt;
-    if (!receipts) {
-      receipts = await sock?.messageInfo(remoteJid!, id!);
-      if (msg) {
-        msg.userReceipt = receipts;
-        await this.ds.getRepository(DBMessage).save(msg);
-      }
-    }
-
-    return receipts;
-  };
+    })) ||
+    (await this.repos.messageDics.save({
+      jid,
+      DBAuth: { id: this.auth.id },
+      messages: [],
+    }));
 
   bind = (ev: BaileysEventEmitter) => {
     ev.on("connection.update", (update) => Object.assign(this.state, update));
-    ev.on("chats.set", async ({ chats: newChats, isLatest }) => {
-      isLatest &&
-        (await this.ds
-          .getRepository(DBChat)
-          .createQueryBuilder()
-          .delete()
-          .execute());
+    ev.on(
+      "messaging-history.set",
+      async ({
+        chats: newChats,
+        contacts: newContacts,
+        messages: newMessages,
+        isLatest,
+      }) => {
+        isLatest &&
+          (await Promise.all([
+            async () =>
+              await this.repos.messageDics.remove(
+                await this.repos.messageDics.findBy({
+                  DBAuth: { id: this.auth.id },
+                })
+              ),
+            async () =>
+              await this.repos.chats.remove(
+                await this.repos.chats.findBy({ DBAuth: { id: this.auth.id } })
+              ),
+          ]));
 
-      await this.ds.getRepository(DBChat).insert(newChats as any);
-    });
-    ev.on("contacts.set", ({ contacts: newContacts }) =>
-      this.ds.getRepository(DBContact).upsert(newContacts, {
-        conflictPaths: ["id"],
-      })
-    );
-    ev.on("messages.set", async ({ messages: newMessages, isLatest }) => {
-      if (isLatest) {
-        const dics = (
-          await this.ds.getRepository(DBMessageDic).find({
-            relations: ["messages"],
-          })
-        ).filter((x) => newMessages.find((y) => y.key.id === x.jid));
-        await Promise.all(
-          dics.map(
-            async (x) =>
-              await this.ds.getRepository(DBMessage).remove(x.messages)
-          )
-        );
-        await this.ds.getRepository(DBMessageDic).remove(dics);
-      }
-
-      for (const msg of newMessages) {
-        const jid = msg.key.remoteJid!;
-        var dictionary = await this.ds.getRepository(DBMessageDic).findOne({
-          where: {
-            jid,
-          },
-          relations: ["messages"],
+        const oldContacts = await this.contactsUpsert(newContacts);
+        await this.repos.contacts.delete({
+          id: In(Array.from(oldContacts)),
+          DBAuth: { id: this.auth.id },
         });
-        if (!dictionary) {
-          await this.ds.getRepository(DBMessageDic).save({
-            jid,
-            messages: [{ ...(msg as any), msgId: msg.key?.id }],
-          });
-          continue;
-        }
 
-        let message: DBMessage;
-        if (
-          !(message = dictionary.messages.find((x) => x.key.id === msg.key.id))
-        ) {
-          await this.ds.getRepository(DBMessage).save({
-            ...(msg as any),
-            msgId: msg.key?.id,
-            dictionary,
-          });
-          continue;
+        for (const msg of newMessages) {
+          const jid = msg.key.remoteJid!,
+            dictionary = await this.assertMessageList(jid);
+
+          let message: DBMessage;
+          if (
+            !(message = dictionary.messages.find(
+              (x) => x.key.id === msg.key.id
+            ))
+          ) {
+            await this.repos.messages.save({
+              ...(msg as any),
+              msgId: msg.key?.id,
+              dictionary,
+            });
+            continue;
+          }
+          Object.assign(message, msg);
+          await this.repos.messageDics.save(dictionary);
         }
-        Object.assign(message, msg);
-        await this.ds.getRepository(DBMessageDic).save(dictionary);
       }
-    });
+    );
     ev.on("contacts.update", async (updates) => {
       for (const update of updates) {
         let contact: DBContact;
         if (
-          (contact = await this.ds.getRepository(DBContact).findOneBy({
+          (contact = await this.repos.contacts.findOneBy({
             id: update.id!,
+            DBAuth: { id: this.auth.id },
           }))
         ) {
           Object.assign(contact, update);
-          await this.ds.getRepository(DBContact).save(contact);
+          await this.repos.contacts.save(contact);
         }
       }
     });
     ev.on("chats.upsert", (newChats) =>
-      this.ds.getRepository(DBChat).upsert(newChats as any, {
-        conflictPaths: ["id"],
-      })
+      this.repos.chats.upsert(
+        { ...(newChats as any), DBAuth: { id: this.auth.id } },
+        {
+          conflictPaths: ["id", "DBAuth"],
+        }
+      )
     );
     ev.on("chats.update", async (updates) => {
       for (let update of updates) {
-        var chat = await this.ds.getRepository(DBChat).findOneBy({
+        var chat = await this.repos.chats.findOneBy({
           id: update.id!,
+          DBAuth: { id: this.auth.id },
         });
         if (!chat) return;
         if (update.unreadCount! > 0) {
@@ -368,20 +273,22 @@ export default class StoreHandle {
         }
 
         Object.assign(chat, update);
-        await this.ds.getRepository(DBChat).save(chat);
+        await this.repos.chats.save(chat);
       }
     });
     ev.on("presence.update", async ({ id, presences: update }) => {
       var chat =
-        (await this.ds.getRepository(DBPresenceDic).findOne({
+        (await this.repos.presenceDics.findOne({
           where: {
             id,
+            DBAuth: { id: this.auth.id },
           },
           relations: ["presences"],
         })) ||
         ({
           id,
           presences: [],
+          DBAuth: { id: this.auth.id },
         } as DBPresenceDic);
 
       Object.entries(update).forEach(([id, presence]) => {
@@ -395,16 +302,22 @@ export default class StoreHandle {
       });
 
       try {
-        await this.ds.getRepository(DBPresenceDic).save(chat);
+        await this.repos.presenceDics.save(chat);
       } catch {}
     });
-    ev.on("chats.delete", async (deletions) => {
-      for (const item of deletions) {
-        await this.ds.getRepository(DBChat).delete({
-          id: item,
-        });
-      }
-    });
+    ev.on(
+      "chats.delete",
+      async (deletions) =>
+        !this.options.disableDelete.includes("chats") &&
+        Promise.all(
+          deletions.map((id) =>
+            this.repos.chats.delete({
+              id,
+              DBAuth: { id: this.auth.id },
+            })
+          )
+        )
+    );
     ev.on("messages.upsert", async ({ messages: newMessages, type }) => {
       switch (type) {
         case "append":
@@ -412,17 +325,7 @@ export default class StoreHandle {
           for (const msg of newMessages) {
             const jid = jidNormalizedUser(msg.key.remoteJid!);
 
-            var dictionary = await this.ds.getRepository(DBMessageDic).findOne({
-              where: {
-                jid,
-              },
-              relations: ["messages"],
-            });
-            if (!dictionary)
-              return await this.ds.getRepository(DBMessageDic).save({
-                jid,
-                messages: [{ ...(msg as any), msgId: msg.key?.id }],
-              });
+            var dictionary = await this.assertMessageList(jid);
 
             let message: DBMessage;
             if (
@@ -430,71 +333,90 @@ export default class StoreHandle {
                 (x) => x.key.id === msg.key.id
               ))
             )
-              return await this.ds.getRepository(DBMessage).save({
+              return await this.repos.messages.save({
                 ...(msg as any),
                 msgId: msg.key?.id,
                 dictionary,
               });
-            Object.assign(message, msg);
-            await this.ds.getRepository(DBMessageDic).save(dictionary);
+            Object.assign(message || {}, msg);
+            await this.repos.messageDics.save(dictionary);
 
-            if (type === "notify") {
-              if (
-                !(await this.ds.getRepository(DBChat).findOneBy({
+            type === "notify" &&
+              !(await this.repos.chats.findOneBy({
+                id: jid,
+                DBAuth: { id: this.auth.id },
+              })) &&
+              ev.emit("chats.upsert", [
+                {
                   id: jid,
-                }))
-              ) {
-                ev.emit("chats.upsert", [
-                  {
-                    id: jid,
-                    conversationTimestamp: toNumber(msg.messageTimestamp),
-                    unreadCount: 1,
-                  },
-                ]);
-              }
-            }
+                  conversationTimestamp: toNumber(msg.messageTimestamp),
+                  unreadCount: 1,
+                },
+              ]);
           }
           break;
       }
     });
     ev.on("messages.update", async (updates) => {
       for (const { update, key } of updates) {
-        var dictionary = await this.ds.getRepository(DBMessageDic).findOne({
-          where: {
-            jid: key.remoteJid!,
-          },
-          relations: ["messages"],
-        });
-        if (!dictionary)
-          return await this.ds.getRepository(DBMessageDic).save({
-            jid: key.remoteJid!,
-            messages: [update as any],
-          });
+        var dictionary = await this.assertMessageList(key.remoteJid!);
 
         let message: DBMessage;
         if (!(message = dictionary.messages.find((x) => x.key.id === key.id)))
-          return;
+          continue;
         Object.assign(message, update);
-        await this.ds.getRepository(DBMessageDic).save(dictionary);
+        await this.repos.messageDics.save(dictionary);
+      }
+    });
+    ev.on("messages.delete", async (item) => {
+      if (this.options.disableDelete.includes("messages")) return;
+      if ("all" in item) {
+        const dictionary = await this.repos.messageDics.findOne({
+          where: {
+            jid: item.jid,
+            DBAuth: { id: this.auth.id },
+          },
+          relations: ["messages"],
+        });
+        if (!dictionary) return;
+        this.repos.messages.remove(dictionary.messages);
+      } else {
+        const jid = item.keys[0].remoteJid!;
+        const dictionary = await this.repos.messageDics.findOne({
+          where: {
+            jid,
+            DBAuth: { id: this.auth.id },
+          },
+          relations: ["messages"],
+        });
+        if (!dictionary) return;
+        const idSet = new Set(item.keys.map((k) => k.id));
+        await this.repos.messages.remove(
+          dictionary.messages.filter((msg) =>
+            Array.from(idSet).includes(msg.msgId)
+          )
+        );
       }
     });
 
     ev.on("groups.update", async (updates) => {
       for (const update of updates) {
         const id = update.id!;
-        let groupMetadata = await this.ds
-          .getRepository(DBGroupMetadata)
-          .findOneBy({ id });
-        if (!groupMetadata) return;
-        Object.assign(groupMetadata, update);
-        await this.ds.getRepository(DBGroupMetadata).save(groupMetadata);
+        let group = await this.repos.groups.findOneBy({
+          id,
+          DBAuth: { id: this.auth.id },
+        });
+        if (!group) return;
+        Object.assign(group, update);
+        await this.repos.groups.save(group);
       }
     });
 
     ev.on("group-participants.update", async ({ id, participants, action }) => {
-      const metadata = await this.ds
-        .getRepository(DBGroupMetadata)
-        .findOneBy({ id });
+      const metadata = await this.repos.groups.findOneBy({
+        id,
+        DBAuth: { id: this.auth.id },
+      });
       if (!metadata) return;
       switch (action) {
         case "add":
@@ -508,12 +430,11 @@ export default class StoreHandle {
           break;
         case "demote":
         case "promote":
-          for (const participant of metadata.participants) {
-            if (participants.includes(participant.id)) {
-              participant.isAdmin = action === "promote";
-            }
-          }
-
+          metadata.participants.forEach(
+            (participant) =>
+              participants.includes(participant.id) &&
+              (participant.isAdmin = action === "promote")
+          );
           break;
         case "remove":
           metadata.participants = metadata.participants.filter(
@@ -521,41 +442,149 @@ export default class StoreHandle {
           );
           break;
       }
-      await this.ds.getRepository(DBGroupMetadata).save(metadata);
+      await this.repos.groups.save(metadata);
     });
 
     ev.on("message-receipt.update", async (updates) => {
       for (const { key, receipt } of updates) {
-        const obj = await this.ds.getRepository(DBMessageDic).findOne({
+        const dictionary = await this.repos.messageDics.findOne({
           where: {
             jid: key.remoteJid!,
+            DBAuth: { id: this.auth.id },
           },
           relations: ["messages"],
         });
-        if (!obj) return;
-        const msg = obj.messages.find((x) => x.key.id === key.id!);
-        if (msg) {
-          updateMessageWithReceipt(msg, receipt);
-          await this.ds.getRepository(DBMessageDic).save(obj);
-        }
+        if (!dictionary) return;
+        const msg = dictionary.messages.find((x) => x.key.id === key.id!);
+        if (!msg) continue;
+        updateMessageWithReceipt(msg, receipt);
+        await this.repos.messageDics.save(dictionary);
       }
     });
 
     ev.on("messages.reaction", async (reactions) => {
       for (const { key, reaction } of reactions) {
-        const obj = await this.ds.getRepository(DBMessageDic).findOne({
+        const dictionary = await this.repos.messageDics.findOne({
           where: {
             jid: key.remoteJid!,
+            DBAuth: { id: this.auth.id },
           },
           relations: ["messages"],
         });
-        if (!obj) return;
-        const msg = obj.messages.find((x) => x.key.id === key.id!);
-        if (msg) {
-          updateMessageWithReaction(msg, reaction);
-          await this.ds.getRepository(DBMessageDic).save(obj);
-        }
+        if (!dictionary) return;
+        const msg = dictionary.messages.find((x) => x.key.id === key.id!);
+        if (!msg) continue;
+        updateMessageWithReaction(msg, reaction);
+        await this.repos.messageDics.save(dictionary);
       }
     });
+  };
+
+  loadMessages = async (
+    jid: string,
+    count: number,
+    cursor: WAMessageCursor
+  ): Promise<DBMessage[]> => {
+    const dictionary = await this.assertMessageList(jid),
+      mode = !cursor || "before" in cursor ? "before" : "after",
+      cursorKey = !!cursor
+        ? "before" in cursor
+          ? cursor.before
+          : cursor.after
+        : undefined,
+      cursorValue = cursorKey
+        ? dictionary.messages.find((x) => x.msgId === cursorKey.id!)
+        : undefined;
+
+    let messages: DBMessage[];
+    if (dictionary && mode === "before" && (!cursorKey || cursorValue)) {
+      if (cursorValue) {
+        const msgIdx = dictionary.messages.findIndex(
+          (m) => m.key.id === cursorKey?.id
+        );
+        messages = dictionary.messages.slice(0, msgIdx);
+      } else messages = dictionary.messages;
+
+      const diff = count - messages.length;
+      diff < 0 && (messages = messages.slice(-count));
+    } else {
+      messages = [];
+    }
+
+    return messages;
+  };
+
+  loadMessage = async (
+    jid: string,
+    id: string
+  ): Promise<DBMessage | undefined> =>
+    (
+      await this.repos.messageDics.findOne({
+        where: {
+          jid,
+          DBAuth: { id: this.auth.id },
+        },
+        relations: ["messages"],
+      })
+    )?.messages.find((x) => x.msgId === id);
+
+  mostRecentMessage = async (jid: string): Promise<DBMessage | undefined> =>
+    (
+      await this.repos.messageDics.findOne({
+        where: {
+          jid,
+          DBAuth: { id: this.auth.id },
+        },
+        relations: ["messages"],
+      })
+    )?.messages.slice(-1)[0];
+
+  fetchImageUrl = async (
+    jid: string,
+    sock: WASocket | undefined
+  ): Promise<string> => {
+    const contact = await this.repos.contacts.findOne({ where: { id: jid } });
+    if (!contact) return sock?.profilePictureUrl(jid);
+    if (typeof contact.imgUrl === "undefined")
+      await this.repos.contacts.save({
+        ...contact,
+        imgUrl: await sock?.profilePictureUrl(jid),
+      });
+    return contact.imgUrl;
+  };
+
+  fetchGroupMetadata = async (
+    jid: string,
+    sock: WASocket | undefined
+  ): Promise<DBGroupMetadata | undefined> => {
+    var group = await this.repos.groups.findOneBy({
+      id: jid,
+      DBAuth: { id: this.auth.id },
+    });
+    if (!group) {
+      const metadata = await sock?.groupMetadata(jid);
+      metadata &&
+        (group = await this.repos.groups.save({
+          ...metadata,
+          DBAuth: { id: this.auth.id },
+        }));
+    }
+
+    return group;
+  };
+
+  fetchMessageReceipts = async ({
+    remoteJid,
+    id,
+  }: WAMessageKey): Promise<DBMessage["userReceipt"] | undefined> => {
+    const dictionary = await this.repos.messageDics.findOne({
+      where: {
+        jid: remoteJid!,
+        DBAuth: { id: this.auth.id },
+      },
+      relations: ["messages"],
+    });
+    const msg = dictionary.messages.find((x) => x.msgId === id);
+    return msg?.userReceipt;
   };
 }
