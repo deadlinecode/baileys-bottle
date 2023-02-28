@@ -24,6 +24,10 @@ class DB {
       !options?.sync && this.dataSource
         ? this.dataSource
         : await new DataSource({
+            synchronize: options?.sync,
+            migrations: [],
+            logging: options?.debug,
+            charset: "cp1251_general_ci",
             ...db,
             entities: [
               Auth,
@@ -34,11 +38,8 @@ class DB {
               Message,
               PresenceDic,
               Presence,
+              ...db.entities,
             ],
-            synchronize: options?.sync,
-            migrations: [],
-            logging: options?.debug,
-            charset: "cp1251_general_ci",
           } as any).initialize();
 
     try {

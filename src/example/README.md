@@ -117,6 +117,35 @@ So for `store.chats.get("id")` you now do `await store.chats.id("id")`<br/> and 
 Please note the `await` since every transaction to the DB is async and if you don't await it you only get a unresolved promise in return.<br/><br/>
 Another thing to notice:<br/>You also have a `all` function on every store function that works just like the `id` function except -1 argument. As you can already imagine this will return all results instead of only one specific one.
 
+## What if i want to tinker with the typeorm instance
+
+If you want to use the DataSource instance that baileys-bottle uses to for example also add your own tables and stuff to your database you can do that easily.
+Since v2.1.0 baileys-bottle not only exposes _ds (the DataSource object) on the object that is returned by `createStore()` but also let's you overwrite all typeorm options when creating the data source (except the tables that are needed for baileys-bottle to work).
+
+So for example you can just
+```ts
+// ...
+BaileysBottle.init(
+  {
+    type: "sqlite",
+    database: "db.sqlite",
+    // entities will be added to the ones baileys-bottle needs
+    entities: [MyOwnTableEntity]
+  },
+  {
+    debug: true,
+  }
+).then(async (bottle) => {
+// ...
+```
+And then you can just
+```ts
+  const { auth, store, _ds } = await bottle.createStore("store name");
+  const rows = await _ds.getRepository(MyOwnTableEntity).find();
+```
+
+If you wanna know how to work with typeorm, you can just [look at their documentation](https://typeorm.io).
+
 ## So thats it
 
 ### Oh wait its not lol im stpd

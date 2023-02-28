@@ -28,6 +28,7 @@ class BaileysBottle {
     return {
       auth: new AuthHandle(ds, storeName),
       store: new StoreHandle(ds, store, options),
+      _ds: ds,
     };
   };
 
@@ -41,7 +42,7 @@ class BaileysBottle {
     createStore: (
       storeName?: string,
       storeOptions?: StoreHandleOptions
-    ) => Promise<{ auth: AuthHandle; store: StoreHandle }>;
+    ) => Promise<{ auth: AuthHandle; store: StoreHandle; _ds: DataSource }>;
   }> => ({
     createStore: async (...args: any[]) =>
       this.createStore.apply(null, [await DB.get(db, options), ...args]),
