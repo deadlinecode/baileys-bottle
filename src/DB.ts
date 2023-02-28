@@ -38,7 +38,7 @@ class DB {
               Message,
               PresenceDic,
               Presence,
-              ...db.entities,
+              ...(db.entities as any),
             ],
           } as any).initialize();
 
