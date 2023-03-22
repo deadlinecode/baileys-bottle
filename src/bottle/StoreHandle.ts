@@ -252,14 +252,18 @@ export default class StoreHandle {
         }
       }
     });
-    ev.on("chats.upsert", (newChats) =>
-      this.repos.chats.upsert(
-        { ...(newChats as any), DBAuth: { id: this.auth.id } },
-        {
-          conflictPaths: ["id", "DBAuth"],
-        }
-      )
-    );
+    ev.on("chats.upsert", (newChats) => {
+      try {
+        newChats.forEach((chat) => {
+          this.repos.chats.upsert(
+            { ...chat, DBAuth: { id: this.auth.id } },
+            {
+              conflictPaths: ["id", "DBAuth"],
+            }
+          );
+        });
+      } catch {}
+    });
     ev.on("chats.update", async (updates) => {
       for (let update of updates) {
         var chat = await this.repos.chats.findOneBy({
