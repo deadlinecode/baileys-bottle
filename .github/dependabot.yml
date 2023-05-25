@@ -10,4 +10,4 @@ updates:
     schedule:
       interval: "weekly"
     allow:
-      - dependency-name: "@adiwajshing/*"
+      - dependency-name: "@whiskeysockets/*"

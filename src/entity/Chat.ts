@@ -1,4 +1,4 @@
-import { proto } from "@adiwajshing/baileys";
+import { proto } from "@whiskeysockets/baileys";
 import {
   Entity,
   PrimaryGeneratedColumn,
