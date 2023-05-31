@@ -5,7 +5,7 @@ import {
   initAuthCreds,
   proto,
   SignalDataTypeMap,
-} from "@adiwajshing/baileys";
+} from "@whiskeysockets/baileys";
 import { DataSource } from "typeorm";
 import { Auth } from "../entity/Auth";
 
