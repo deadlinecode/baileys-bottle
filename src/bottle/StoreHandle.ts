@@ -227,8 +227,15 @@ export default class StoreHandle {
             ))
           ) {
             await this.repos.messages.save({
-              ...(msg as any),
+              messageTimestamp:
+                typeof msg.messageTimestamp === "number"
+                  ? toNumber(msg.messageTimestamp)
+                  : msg.messageTimestamp?.low,
               msgId: msg.key?.id,
+              participant: msg.key?.participant
+                ? msg.key?.participant
+                : msg.key?.remoteJid,
+              ...msg,
               dictionary,
             });
             continue;
@@ -262,7 +269,7 @@ export default class StoreHandle {
             }
           );
         });
-      } catch {}
+      } catch { }
     });
     ev.on("chats.update", async (updates) => {
       for (let update of updates) {
@@ -300,14 +307,14 @@ export default class StoreHandle {
         participant
           ? Object.assign(participant, presence)
           : chat.presences.push({
-              ...presence,
-              participant: id,
-            } as any);
+            ...presence,
+            participant: id,
+          } as any);
       });
 
       try {
         await this.repos.presenceDics.save(chat);
-      } catch {}
+      } catch { }
     });
     ev.on(
       "chats.delete",
@@ -344,10 +351,8 @@ export default class StoreHandle {
                     : msg.messageTimestamp?.low,
                 msgId: msg.key?.id,
                 participant: msg.key?.participant
-                  ? jidNormalizedUser(msg.key?.participant)
-                  : msg.key?.fromMe
-                  ? msg.key?.remoteJid
-                  : null,
+                  ? msg.key?.participant
+                  : msg.key?.remoteJid,
                 ...msg,
                 dictionary,
               });

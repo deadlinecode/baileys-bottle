@@ -8,3 +8,4 @@ temp/
 db.sqlite
 test.ts
 package-lock.json
+pnpm-lock.yaml
