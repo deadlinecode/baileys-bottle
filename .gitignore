@@ -7,3 +7,4 @@ tmp/
 temp/
 db.sqlite
 test.ts
+package-lock.json
