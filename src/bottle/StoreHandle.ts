@@ -338,8 +338,17 @@ export default class StoreHandle {
               ))
             )
               return await this.repos.messages.save({
-                ...(msg as any),
+                messageTimestamp:
+                  typeof msg.messageTimestamp === "number"
+                    ? toNumber(msg.messageTimestamp)
+                    : msg.messageTimestamp?.low,
                 msgId: msg.key?.id,
+                participant: msg.key?.participant
+                  ? jidNormalizedUser(msg.key?.participant)
+                  : msg.key?.fromMe
+                  ? msg.key?.remoteJid
+                  : null,
+                ...msg,
                 dictionary,
               });
             Object.assign(message || {}, msg);
