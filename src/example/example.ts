@@ -3,7 +3,7 @@ import makeWASocket, {
   fetchLatestBaileysVersion,
 } from "@whiskeysockets/baileys";
 import log from "@whiskeysockets/baileys/lib/Utils/logger";
-import BaileysBottle from "..";
+import BaileysBottle from "../../lib"
 import { Boom } from "@hapi/boom";
 
 console.clear();

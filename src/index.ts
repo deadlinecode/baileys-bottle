@@ -49,4 +49,5 @@ class BaileysBottle {
   });
 }
 
+export type { StoreHandle, AuthHandle, DataSource }
 export default BaileysBottle.instance;
